@@ -11,7 +11,14 @@ from syntactic_complexity_convergence.cka import analyze as analyze_cka
 from syntactic_complexity_convergence.cka import linear_cka
 from syntactic_complexity_convergence.calculate_metrics import (
     calculate_with_pipeline,
+    calculate_complexity,
+    calculate_syncom,
+    dependency_length,
     dependency_metrics,
+    long_dependency_ratio,
+    sentence_syncom_metrics,
+    summarize_syncom,
+    tree_depth,
 )
 from syntactic_complexity_convergence.convergence import analyze as analyze_convergence
 from syntactic_complexity_convergence.dialogue_lengths import calculate_lengths
@@ -87,7 +94,7 @@ class PipelineTests(unittest.TestCase):
         self.assertAlmostEqual(linear_cka(x, x), 1.0)
 
     def test_dependency_metrics_calculation(self) -> None:
-        """Calculate dependency metrics from a minimal fake parser document."""
+        """Check the original tree, length, complexity, and long-arc formulas."""
         words = [
             SimpleNamespace(id=1, head=0),
             SimpleNamespace(id=2, head=1),
@@ -95,15 +102,34 @@ class PipelineTests(unittest.TestCase):
         ]
 
         class Pipeline:
+            """Return the same three-token dependency tree for each input."""
+
             def __call__(self, text: str) -> SimpleNamespace:
                 """Return a parser-shaped document for the metric calculation."""
                 return SimpleNamespace(sentences=[SimpleNamespace(words=words)])
 
-        metrics = dependency_metrics("a b c", Pipeline())
+        pipeline = Pipeline()
+        metrics = dependency_metrics("a b c", pipeline)
         self.assertEqual(metrics["word_count"], 3)
         self.assertEqual(metrics["tree_depth"], 2)
         self.assertAlmostEqual(metrics["syn_value"], 1.75)
         self.assertAlmostEqual(metrics["dependency_length"], 1.5)
+        self.assertEqual(tree_depth("a b c", pipeline), 2)
+        self.assertAlmostEqual(dependency_length("a b c", pipeline), 1.5)
+        self.assertAlmostEqual(calculate_complexity("a b c", pipeline), 1.75)
+        self.assertAlmostEqual(long_dependency_ratio("a b c", pipeline), 0.0)
+        np.testing.assert_allclose(
+            sentence_syncom_metrics("a b c", pipeline),
+            [1.75, 1.5, 2.0, 0.0],
+        )
+        np.testing.assert_allclose(
+            calculate_syncom(["a b c", ""], pipeline),
+            [[1.75, 1.5, 2.0, 0.0]],
+        )
+        np.testing.assert_allclose(
+            summarize_syncom(["a b c"], pipeline),
+            [1.75, 1.5, 2.0, 0.0],
+        )
 
     def test_stanza_pipeline_writer_saves_metrics_per_turn(self) -> None:
         """Apply an injected Stanza-shaped pipeline and write all computed metrics."""

@@ -12,64 +12,124 @@ METRICS = [
 ]
 
 
+def _tree_depth_from_document(document) -> int:
+    """Compute maximum dependency depth in the first sentence, as in the original script."""
+    if not document.sentences:
+        return 0
+    sentence = document.sentences[0]
+    children: dict[int, list[int]] = {}
+    roots = []
+    for word in sentence.words:
+        if word.head == 0:
+            roots.append(word.id)
+        else:
+            children.setdefault(word.head, []).append(word.id)
+
+    def compute_depth(node_id: int) -> int:
+        """Return one node's depth by recursively traversing its dependents."""
+        return 1 + max(
+            (compute_depth(child) for child in children.get(node_id, [])),
+            default=0,
+        )
+
+    return max((compute_depth(root) for root in roots), default=0)
+
+
 def dependency_metrics(text: str, pipeline) -> dict[str, float]:
-    """Calculate prototype syntactic-complexity metrics from a Stanza parse.
+    """Calculate the original project's four syntactic-complexity metrics.
 
     ``syn_value`` is 0.5 * (whitespace-token count / number of distinct head IDs)
-    + 0.5 * maximum dependency-tree depth. Head ID zero (the root) is included.
-    Dependency length is the mean absolute token-to-head index distance.
-    Complex dependency ratio is the share of non-root arcs longer than two.
+    + 0.5 * first-sentence tree depth. Root head ID zero is included, matching
+    ``calculate_complexity`` in the earlier project script.
     """
     document = pipeline(text)
-    depths: list[int] = []
-    dependency_distances: list[int] = []
-    long_dependencies = 0
-    dependency_count = 0
-    head_ids: set[int] = set()
-    parser_word_count = 0
-    surface_token_count = len(text.split())
-
-    for sentence in document.sentences:
-        words = sentence.words
-        parser_word_count += len(words)
-        children: dict[int, list[int]] = {}
-        roots: list[int] = []
-        for word in words:
-            head_id = int(word.head)
-            word_id = int(word.id)
-            head_ids.add(head_id)
-            if head_id == 0:
-                roots.append(word_id)
-                continue
-            children.setdefault(head_id, []).append(word_id)
-            distance = abs(word_id - head_id)
-            dependency_distances.append(distance)
-            dependency_count += 1
-            # The prototype marks dependencies spanning more than two tokens.
-            long_dependencies += distance > 2
-
-        def depth(node_id: int) -> int:
-            """Return the maximum dependency-tree depth below one node."""
-            return 1 + max((depth(child) for child in children.get(node_id, [])), default=0)
-
-        depths.extend(depth(root) for root in roots)
-
-    tree_depth = max(depths, default=0)
-    dependency_length = float(np.mean(dependency_distances)) if dependency_distances else 0.0
-    complex_ratio = long_dependencies / dependency_count if dependency_count else 0.0
-    # Keep the original prototype's equal weighting of normalized length and depth.
-    syn_value = (
-        0.5 * (surface_token_count / len(head_ids)) + 0.5 * tree_depth
+    head_ids = {
+        word.head
+        for sentence in document.sentences
+        for word in sentence.words
+    }
+    distances = [
+        abs(word.id - word.head)
+        for sentence in document.sentences
+        for word in sentence.words
+        if word.head > 0
+    ]
+    long_dependencies = sum(distance > 2 for distance in distances)
+    tree = _tree_depth_from_document(document)
+    complexity = (
+        0.5 * (len(text.split()) / len(head_ids)) + 0.5 * tree
         if head_ids
-        else 0.5 * tree_depth
+        else 0.5 * tree
     )
     return {
-        "word_count": parser_word_count,
-        "syn_value": float(syn_value),
-        "dependency_length": dependency_length,
-        "tree_depth": float(tree_depth),
-        "complex_dependency_ratio": float(complex_ratio),
+        "word_count": sum(len(sentence.words) for sentence in document.sentences),
+        "syn_value": float(complexity),
+        "dependency_length": float(np.mean(distances)) if distances else 0.0,
+        "tree_depth": float(tree),
+        "complex_dependency_ratio": (
+            long_dependencies / len(distances) if distances else 0.0
+        ),
     }
+
+
+def tree_depth(text: str, dep_parser) -> int:
+    """Parse one utterance and return its first-sentence dependency-tree depth."""
+    return _tree_depth_from_document(dep_parser(text))
+
+
+def dependency_length(text: str, dep_parser) -> float:
+    """Return the mean token-to-head distance across non-root dependency arcs."""
+    document = dep_parser(text)
+    distances = [
+        abs(word.id - word.head)
+        for sentence in document.sentences
+        for word in sentence.words
+        if word.head > 0
+    ]
+    return float(np.mean(distances)) if distances else 0.0
+
+
+def calculate_complexity(sentence: str, dep_parser) -> float:
+    """Return the original weighted length-and-tree-depth complexity score."""
+    return dependency_metrics(sentence, dep_parser)["syn_value"]
+
+
+def long_dependency_ratio(text: str, dep_parser, threshold: int = 3) -> float:
+    """Return the proportion of non-root dependencies longer than a threshold."""
+    document = dep_parser(text)
+    distances = [
+        abs(word.id - word.head)
+        for sentence in document.sentences
+        for word in sentence.words
+        if word.head > 0
+    ]
+    return (
+        sum(distance > threshold for distance in distances) / len(distances)
+        if distances
+        else 0.0
+    )
+
+
+def sentence_syncom_metrics(text: str, dep_parser) -> list[float]:
+    """Return complexity, dependency length, tree depth, and long-arc ratio."""
+    metrics = dependency_metrics(text, dep_parser)
+    return [metrics[name] for name in METRICS]
+
+
+def calculate_syncom(texts, dep_parser) -> np.ndarray:
+    """Calculate the four syntactic metrics for each non-empty text."""
+    rows = [
+        sentence_syncom_metrics(str(text).strip(), dep_parser)
+        for text in texts
+        if str(text).strip()
+    ]
+    return np.asarray(rows, dtype=float) if rows else np.empty((0, len(METRICS)))
+
+
+def summarize_syncom(sentences, dep_parser):
+    """Return the mean metrics for a sentence collection, or ``None`` if empty."""
+    metrics = calculate_syncom(sentences, dep_parser)
+    return metrics.mean(axis=0) if metrics.size else None
 
 
 def calculate_with_pipeline(

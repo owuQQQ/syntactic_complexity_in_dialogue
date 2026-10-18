@@ -83,8 +83,13 @@ python3 syntactic_complexity_convergence/calculate_syntactic_complexity.py \
 The executable [`calculate_syntactic_complexity.py`](calculate_syntactic_complexity.py)
 imports `stanza` directly, creates `stanza.Pipeline` with tokenization,
 part-of-speech tagging, lemmatization, and dependency parsing, then calculates
-the metrics for every turn. The metric implementation is shared with
-[`calculate_metrics.py`](calculate_metrics.py), avoiding duplicate formulas.
+the metrics for every turn. The metric functions in
+[`calculate_metrics.py`](calculate_metrics.py) retain the formulas and public
+helper names from the existing project implementation (`tree_depth`,
+`dependency_length`, `calculate_complexity`, `long_dependency_ratio`,
+`sentence_syncom_metrics`, `calculate_syncom`, and `summarize_syncom`).
+The command-line script uses these shared functions rather than duplicating
+the calculations.
 
 Each utterance is parsed with Stanza. The result includes `word_count`,
 `syn_value`, `dependency_length`, `tree_depth`, and
