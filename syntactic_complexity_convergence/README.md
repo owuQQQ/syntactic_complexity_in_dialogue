@@ -34,6 +34,9 @@ python3 -c "import stanza; stanza.download('de')"
 python3 -c "import stanza; stanza.download('ja')"
 ```
 
+Use Python 3.10 or newer. The scripts use the built-in modern type syntax,
+without postponed-annotation imports.
+
 Stanza models are large and are downloaded separately. Download only the
 language models needed for a run. The metric calculation supports CPU by
 default; use `--gpu` only when Stanza can access a configured GPU.
@@ -81,9 +84,20 @@ Each utterance is parsed with Stanza. The result includes `word_count`,
 `syn_value`, `dependency_length`, `tree_depth`, and
 `complex_dependency_ratio`. `syn_value` retains the prototype definition:
 one half whitespace-token count per distinct head ID (including the root) plus
-one half maximum dependency-tree depth. Dependency length is the mean linear
-distance to the governor; complex dependency ratio is the proportion with
-distance greater than two.
+one half maximum dependency-tree depth:
+
+```text
+syn_value = 0.5 * (whitespace_token_count / number_of_distinct_head_IDs)
+          + 0.5 * maximum_dependency_tree_depth
+```
+
+For example, with 6 whitespace tokens, 4 distinct head IDs (including root
+ID 0), and a tree depth of 3, `syn_value = 0.5 * (6 / 4) + 0.5 * 3 = 2.25`.
+`dependency_length` is the mean absolute token-index distance to the head,
+excluding root arcs. `complex_dependency_ratio` is the number of non-root
+arcs with distance greater than 2 divided by all non-root arcs. The
+implementation is in [`calculate_metrics.py`](calculate_metrics.py), in
+`dependency_metrics`.
 
 ## 3. Label dialogue phases
 

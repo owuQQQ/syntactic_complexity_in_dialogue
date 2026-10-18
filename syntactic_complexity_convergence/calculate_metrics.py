@@ -1,8 +1,5 @@
-from __future__ import annotations
-
 import argparse
 from pathlib import Path
-from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -15,8 +12,14 @@ METRICS = [
 ]
 
 
-def dependency_metrics(text: str, pipeline: Callable[[str], Any]) -> dict[str, float]:
-    """Calculate utterance-level metrics using Stanza dependency parses."""
+def dependency_metrics(text: str, pipeline) -> dict[str, float]:
+    """Calculate prototype syntactic-complexity metrics from a Stanza parse.
+
+    ``syn_value`` is 0.5 * (whitespace-token count / number of distinct head IDs)
+    + 0.5 * maximum dependency-tree depth. Head ID zero (the root) is included.
+    Dependency length is the mean absolute token-to-head index distance.
+    Complex dependency ratio is the share of non-root arcs longer than two.
+    """
     document = pipeline(text)
     depths: list[int] = []
     dependency_distances: list[int] = []
@@ -42,6 +45,7 @@ def dependency_metrics(text: str, pipeline: Callable[[str], Any]) -> dict[str, f
             distance = abs(word_id - head_id)
             dependency_distances.append(distance)
             dependency_count += 1
+            # The prototype marks dependencies spanning more than two tokens.
             long_dependencies += distance > 2
 
         def depth(node_id: int) -> int:
@@ -53,6 +57,7 @@ def dependency_metrics(text: str, pipeline: Callable[[str], Any]) -> dict[str, f
     tree_depth = max(depths, default=0)
     dependency_length = float(np.mean(dependency_distances)) if dependency_distances else 0.0
     complex_ratio = long_dependencies / dependency_count if dependency_count else 0.0
+    # Keep the original prototype's equal weighting of normalized length and depth.
     syn_value = (
         0.5 * (surface_token_count / len(head_ids)) + 0.5 * tree_depth
         if head_ids

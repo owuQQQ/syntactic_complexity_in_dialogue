@@ -1,9 +1,6 @@
-from __future__ import annotations
-
 import argparse
 import json
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 
@@ -17,7 +14,7 @@ COLUMN_ALIASES = {
 }
 
 
-def _records_from_json(payload: Any, role: str | None) -> pd.DataFrame:
+def _records_from_json(payload, role: str | None) -> pd.DataFrame:
     """Convert supported JSON dialogue structures into a tabular frame."""
     if isinstance(payload, list):
         rows = payload
