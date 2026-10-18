@@ -166,16 +166,20 @@ Set `--phases 16 --min-turns 32` to repeat the analysis at 16 phases.
 
 ## Reuse of the existing analysis code
 
-The active analysis logic from the earlier `test_syntactic_complexity`
-research code is integrated into one reusable workflow: the Stanza metric
-functions and their original formulas are in `calculate_metrics.py`; turn
-normalization is in `preprocess.py`; 8/16-phase labeling is in
-`phase_labels.py`; convergence and perturbation tests are in `convergence.py`
-and `statistics.py`; paired-speaker linear CKA is in `cka.py`; and
-FourierGPT/NLL/surprisal controls are in `fouriergpt.py`. The original research
-folder is left unchanged. Its hard-coded experiment loops, scratch outputs,
-checkpoint copies, and unrelated demos are not duplicated inside this clean
-subproject.
+The reusable workflow consolidates the Stanza metric functions and original
+formulas in `calculate_metrics.py`, turn normalization in `preprocess.py`,
+8/16-phase labeling in `phase_labels.py`, convergence and perturbation tests
+in `convergence.py` and `statistics.py`, paired-speaker linear CKA in `cka.py`,
+and FourierGPT/NLL/surprisal controls in `fouriergpt.py`.
+
+For traceability, active Python source files from the previous
+`test_syntactic_complexity` folder are preserved under `legacy/original/`,
+including alternate versions of scripts whose functionality is now in the
+package. Prefer the package commands for new analyses; the archived scripts
+retain their original hard-coded paths and dependencies and are not imported
+by the package. Checkpoint copies, notebooks, datasets, and generated outputs
+are kept outside this source package in the adjacent
+`test_syntactic_complexity_archive/` folder.
 
 ## 5. Linear CKA analysis
 
