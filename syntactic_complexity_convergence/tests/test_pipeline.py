@@ -130,6 +130,26 @@ class PipelineTests(unittest.TestCase):
             summarize_syncom(["a b c"], pipeline),
             [1.75, 1.5, 2.0, 0.0],
         )
+        long_words = [
+            SimpleNamespace(id=1, head=0),
+            SimpleNamespace(id=2, head=1),
+            SimpleNamespace(id=3, head=1),
+            SimpleNamespace(id=4, head=1),
+        ]
+
+        class LongPipeline:
+            """Return a tree containing an arc of length three."""
+
+            def __call__(self, text: str) -> SimpleNamespace:
+                """Return the test dependency tree."""
+                return SimpleNamespace(sentences=[SimpleNamespace(words=long_words)])
+
+        long_pipeline = LongPipeline()
+        self.assertEqual(long_dependency_ratio("a b c d", long_pipeline), 0.0)
+        self.assertAlmostEqual(
+            sentence_syncom_metrics("a b c d", long_pipeline)[3],
+            1 / 3,
+        )
 
     def test_stanza_pipeline_writer_saves_metrics_per_turn(self) -> None:
         """Apply an injected Stanza-shaped pipeline and write all computed metrics."""
@@ -196,10 +216,16 @@ class PipelineTests(unittest.TestCase):
                 n_phases=4,
                 min_turns=8,
                 permutations=99,
+                bootstrap_samples=40,
+                n_jobs=1,
             )
             self.assertTrue(prefix.with_name("analysis_phases.csv").exists())
             self.assertTrue(prefix.with_name("analysis_tests.csv").exists())
             self.assertIn("permutation_p_value_bh", summary)
+            self.assertIn("strict_permutation_p_value", summary)
+            self.assertIn("strict_cohen_d", summary)
+            self.assertIn("strict_ci_lower", summary)
+            self.assertTrue((summary["strict_decreasing_ratio"] == 1.0).all())
 
     def test_cka_writes_phase_distances_and_permutation_test(self) -> None:
         """Write CKA distances and a test of their chronological trend."""

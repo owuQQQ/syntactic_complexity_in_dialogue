@@ -141,14 +141,41 @@ category is used. A negative slope is convergence. The one-sided Monte Carlo tes
 independently shuffles phase order within each dialogue, preserving each
 dialogue's phase-gap values while removing their chronological ordering.
 Reported p-values use the plus-one correction and are also adjusted across
-the requested metrics with Benjamini-Hochberg. The output is
-`*_phases.csv` (mean gaps) and `*_tests.csv` (slope and p-values).
+the requested metrics with Benjamini-Hochberg.
+
+The test output also retains the earlier perturbation-test method: strict
+and loose ratios count dialogues whose absolute speaker-gap sequence ends
+lower than it starts, with the strict ratio additionally requiring at least
+two phase-to-phase decreases. Its null independently
+shuffles each speaker's turn order within each dialogue before recalculating
+those ratios. The output includes the null mean/standard deviation, a
+plus-one-corrected one-sided permutation p-value, Cohen's *d*, and a
+dialogue-bootstrap 95% interval for the observed-minus-null strict ratio.
+These strict-ratio p-values are adjusted separately across metrics. Use
+`--bootstrap-samples` to set the number of bootstrap draws and `--n-jobs` to
+select parallel workers (`1` disables parallelism).
+
+The output is `*_phases.csv` (mean gaps) and `*_tests.csv` (slope and
+permutation tests, strict/loose ratios, effect sizes, and intervals).
 
 This randomization test addresses whether the observed *temporal ordering*
 of gaps is more convergent than a randomized ordering; it does not establish
 causality or generalize beyond the sampled dialogues.
 
 Set `--phases 16 --min-turns 32` to repeat the analysis at 16 phases.
+
+## Reuse of the existing analysis code
+
+The active analysis logic from the earlier `test_syntactic_complexity`
+research code is integrated into one reusable workflow: the Stanza metric
+functions and their original formulas are in `calculate_metrics.py`; turn
+normalization is in `preprocess.py`; 8/16-phase labeling is in
+`phase_labels.py`; convergence and perturbation tests are in `convergence.py`
+and `statistics.py`; paired-speaker linear CKA is in `cka.py`; and
+FourierGPT/NLL/surprisal controls are in `fouriergpt.py`. The original research
+folder is left unchanged. Its hard-coded experiment loops, scratch outputs,
+checkpoint copies, and unrelated demos are not duplicated inside this clean
+subproject.
 
 ## 5. Linear CKA analysis
 

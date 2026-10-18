@@ -5,7 +5,12 @@ import numpy as np
 import pandas as pd
 
 from syntactic_complexity_convergence.calculate_metrics import METRICS
-from syntactic_complexity_convergence.statistics import benjamini_hochberg, phase_permutation_test
+from syntactic_complexity_convergence.statistics import (
+    benjamini_hochberg,
+    build_groups_from_df,
+    phase_permutation_test,
+    strict_convergence_test,
+)
 
 
 def paired_phase_gaps(
@@ -68,6 +73,8 @@ def analyze(
     seed: int = 42,
     initiator: str = "initiator",
     follower: str = "follower",
+    bootstrap_samples: int = 1000,
+    n_jobs: int = 1,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Test speaker-gap trends and write phase summaries and permutation results."""
     if n_phases < 2 or min_turns < n_phases or permutations < 1:
@@ -80,6 +87,24 @@ def analyze(
         raise ValueError(f"Metrics input is missing columns: {sorted(missing)}")
     dialogue_gaps = paired_phase_gaps(
         frame, selected, n_phases, min_turns, initiator, follower
+    )
+    role_groups = []
+    for role in (initiator, follower):
+        role_frame = frame.loc[frame["speaker"] == role].sort_values(
+            ["dialogue_id", "turn_index"],
+            kind="stable",
+        )
+        role_groups.append(build_groups_from_df(role_frame, selected))
+    strict_results = strict_convergence_test(
+        role_groups[0],
+        role_groups[1],
+        selected,
+        n_phases,
+        min_turns,
+        permutations=permutations,
+        bootstrap_samples=bootstrap_samples,
+        seed=seed,
+        n_jobs=n_jobs,
     )
     phase_rows = []
     summary_rows = []
@@ -108,10 +133,14 @@ def analyze(
             "slope": observed,
             "permutation_p_value": p_value,
             "directional_convergence": observed < 0 and p_value < 0.05,
+            **strict_results[metric],
         })
     summary = pd.DataFrame(summary_rows)
     summary["permutation_p_value_bh"] = benjamini_hochberg(
         summary["permutation_p_value"].tolist()
+    )
+    summary["strict_permutation_p_value_bh"] = benjamini_hochberg(
+        summary["strict_permutation_p_value"].tolist()
     )
     output_prefix.parent.mkdir(parents=True, exist_ok=True)
     phase_path = output_prefix.with_name(output_prefix.name + "_phases.csv")
@@ -133,6 +162,13 @@ def main() -> None:
     parser.add_argument("--phases", type=int, default=8)
     parser.add_argument("--min-turns", type=int, default=16, help="Minimum turns per speaker.")
     parser.add_argument("--permutations", type=int, default=9999)
+    parser.add_argument("--bootstrap-samples", type=int, default=1000)
+    parser.add_argument(
+        "--n-jobs",
+        type=int,
+        default=-1,
+        help="Parallel workers for turn-order permutations; use 1 to disable parallelism.",
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--initiator", default="initiator")
     parser.add_argument("--follower", default="follower")
@@ -147,6 +183,8 @@ def main() -> None:
         args.seed,
         args.initiator,
         args.follower,
+        args.bootstrap_samples,
+        args.n_jobs,
     )
 
 
