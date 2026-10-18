@@ -16,4 +16,4 @@ installation, supported datasets (A2, Hazumi, BTSJ, Candor, Maptask, LLM_EN,
 and LLM_DE), input formats, and reproducible command examples.
 
 The repository contains analysis code only; corpus data, language-model
-weights, and generated results are not included.
+weights are not included.
