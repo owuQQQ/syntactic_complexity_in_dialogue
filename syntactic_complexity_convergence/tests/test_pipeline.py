@@ -9,7 +9,10 @@ import pandas as pd
 
 from syntactic_complexity_convergence.cka import analyze as analyze_cka
 from syntactic_complexity_convergence.cka import linear_cka
-from syntactic_complexity_convergence.calculate_metrics import dependency_metrics
+from syntactic_complexity_convergence.calculate_metrics import (
+    calculate_with_pipeline,
+    dependency_metrics,
+)
 from syntactic_complexity_convergence.convergence import analyze as analyze_convergence
 from syntactic_complexity_convergence.dialogue_lengths import calculate_lengths
 from syntactic_complexity_convergence.fouriergpt import (
@@ -101,6 +104,33 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(metrics["tree_depth"], 2)
         self.assertAlmostEqual(metrics["syn_value"], 1.75)
         self.assertAlmostEqual(metrics["dependency_length"], 1.5)
+
+    def test_stanza_pipeline_writer_saves_metrics_per_turn(self) -> None:
+        """Apply an injected Stanza-shaped pipeline and write all computed metrics."""
+        words = [
+            SimpleNamespace(id=1, head=0),
+            SimpleNamespace(id=2, head=1),
+            SimpleNamespace(id=3, head=1),
+        ]
+
+        class Pipeline:
+            def __call__(self, text: str) -> SimpleNamespace:
+                """Return a minimal dependency parse for one utterance."""
+                return SimpleNamespace(sentences=[SimpleNamespace(words=words)])
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            input_path = root / "turns.csv"
+            output_path = root / "metrics.csv"
+            pd.DataFrame([{
+                "dialogue_id": "d1",
+                "speaker": "initiator",
+                "turn_index": 0,
+                "text": "a b c",
+            }]).to_csv(input_path, index=False)
+            result = calculate_with_pipeline(input_path, output_path, Pipeline())
+            self.assertTrue(output_path.exists())
+            self.assertAlmostEqual(result.loc[0, "syn_value"], 1.75)
 
     def test_phase_permutation_detects_ordered_decline_reproducibly(self) -> None:
         """Detect the seeded negative trend and reproduce its permutation p-value."""

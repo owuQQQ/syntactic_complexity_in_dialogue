@@ -72,27 +72,17 @@ def dependency_metrics(text: str, pipeline) -> dict[str, float]:
     }
 
 
-def calculate(input_path: Path, output_path: Path, language: str, use_gpu: bool = False) -> pd.DataFrame:
-    """Parse every canonical turn and write its dependency-based metrics."""
-    try:
-        import stanza
-    except ImportError as exc:
-        raise RuntimeError(
-            "Stanza is required for parsing. Install the subproject requirements, "
-            "then download the selected language model (see README.md)."
-        ) from exc
-
+def calculate_with_pipeline(
+    input_path: Path,
+    output_path: Path,
+    pipeline,
+) -> pd.DataFrame:
+    """Apply an initialized Stanza pipeline and save metrics for every dialogue turn."""
     turns = pd.read_csv(input_path)
     required = {"dialogue_id", "speaker", "turn_index", "text"}
     missing = required - set(turns.columns)
     if missing:
         raise ValueError(f"Canonical input is missing columns: {sorted(missing)}")
-    pipeline = stanza.Pipeline(
-        language,
-        processors="tokenize,pos,lemma,depparse",
-        use_gpu=use_gpu,
-        verbose=False,
-    )
     rows = []
     for row in turns.itertuples(index=False):
         metrics = dependency_metrics(str(row.text), pipeline)
@@ -102,6 +92,24 @@ def calculate(input_path: Path, output_path: Path, language: str, use_gpu: bool 
     output.to_csv(output_path, index=False)
     print(f"Calculated metrics for {len(output)} turns; wrote {output_path}.")
     return output
+
+
+def calculate(input_path: Path, output_path: Path, language: str, use_gpu: bool = False) -> pd.DataFrame:
+    """Initialize Stanza for a language and calculate metrics for canonical turns."""
+    try:
+        import stanza
+    except ImportError as exc:
+        raise RuntimeError(
+            "Stanza is required for parsing. Install the subproject requirements, "
+            "then download the selected language model (see README.md)."
+        ) from exc
+    pipeline = stanza.Pipeline(
+        language,
+        processors="tokenize,pos,lemma,depparse",
+        use_gpu=use_gpu,
+        verbose=False,
+    )
+    return calculate_with_pipeline(input_path, output_path, pipeline)
 
 
 def main() -> None:

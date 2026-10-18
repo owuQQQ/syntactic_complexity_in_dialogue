@@ -76,9 +76,15 @@ records are dropped and counted in the command output.
 ## 2. Calculate syntactic complexity
 
 ```bash
-python3 -m syntactic_complexity_convergence.calculate_metrics \
+python3 syntactic_complexity_convergence/calculate_syntactic_complexity.py \
   --input data/Candor_turns.csv --output data/Candor_metrics.csv --language en
 ```
+
+The executable [`calculate_syntactic_complexity.py`](calculate_syntactic_complexity.py)
+imports `stanza` directly, creates `stanza.Pipeline` with tokenization,
+part-of-speech tagging, lemmatization, and dependency parsing, then calculates
+the metrics for every turn. The metric implementation is shared with
+[`calculate_metrics.py`](calculate_metrics.py), avoiding duplicate formulas.
 
 Each utterance is parsed with Stanza. The result includes `word_count`,
 `syn_value`, `dependency_length`, `tree_depth`, and
