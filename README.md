@@ -5,7 +5,7 @@ Code base for the accepted EMNLP paper.
 ## Syntactic-complexity convergence pipeline
 
 The [`syntactic_complexity_convergence/`](syntactic_complexity_convergence/)
-subproject provides dialogue preprocessing, dependency-based syntactic
+project provides dialogue preprocessing, dependency-based syntactic
 complexity metrics, 8- and 16-phase assignment, permutation tests for
 convergence, linear CKA analysis, and FourierGPT-style human/LLM detection
 with surprisal and length-only baselines.
