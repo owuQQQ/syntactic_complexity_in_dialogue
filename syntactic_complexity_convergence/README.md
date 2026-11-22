@@ -5,6 +5,18 @@ dependency-based complexity, speaker convergence tests, linear CKA, and
 length-controlled human/LLM detection. It is self-contained; generated data
 and model weights are not stored in this folder.
 
+## Related paper
+
+This project accompanies the following accepted EMNLP paper:
+
+Yu Wang, Yanran Chen, Yifan Wang, Steffen Eger, and Hendrik Buschmeier. 2026.
+[Syntactic Complexity Convergence in Dialogue: Analysis of the Phenomenon and
+Application to LLM Detection](https://aclanthology.org/2026.emnlp-main.1239/).
+In *Proceedings of the 2026 Conference on Empirical Methods in Natural
+Language Processing*, pages 28244–28269. Association for Computational
+Linguistics. [PDF](https://aclanthology.org/2026.emnlp-main.1239.pdf) ·
+[DOI](https://doi.org/10.18653/2026.emnlp-main.1239).
+
 ## Datasets
 
 The intended corpus set and Stanza language codes are:
